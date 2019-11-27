@@ -10,7 +10,7 @@ public interface IChannel<I> extends AutoCloseable {
 		return new IChannel<I>() {
 
 			@Override
-			public void close() throws Exception {
+			public void close(){
 			}
 
 			@Override

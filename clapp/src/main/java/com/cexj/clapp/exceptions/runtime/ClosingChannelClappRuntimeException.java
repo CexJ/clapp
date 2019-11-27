@@ -1,6 +1,6 @@
 package com.cexj.clapp.exceptions.runtime;
 
-public class ChannelClappRuntimeException extends ClappRuntimeException {
+public class ClosingChannelClappRuntimeException extends ClappRuntimeException {
 
 	/**
 	 * 

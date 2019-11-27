@@ -3,9 +3,10 @@ package com.cexj.clapp.context;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import com.cexj.clapp.exceptions.handler.ClappExceptionHandler;
-import com.cexj.clapp.exceptions.runtime.ChannelClappRuntimeException;
+import com.cexj.clapp.exceptions.handler.ClappExceptionConsumerHandler;
+import com.cexj.clapp.exceptions.handler.ClappExceptionRethrowHandler;
 import com.cexj.clapp.exceptions.runtime.ClappRuntimeException;
+import com.cexj.clapp.exceptions.runtime.ClosingIChannelClappRuntimeException;
 import com.cexj.clapp.exceptions.runtime.FutureClappRuntimeException;
 
 public final class ClappContext {
@@ -13,8 +14,9 @@ public final class ClappContext {
 	public static final ClappContext DEFAULT_CONTEXT = ClappContextBuilder.defaultClapContext();
 	
 	private final ExecutorService executor;
-	private final ClappExceptionHandler<Exception,ClappRuntimeException> futureExceptionHandler;
-	private final ClappExceptionHandler<Exception,ClappRuntimeException> channelExceptionHandler;
+	private final ClappExceptionRethrowHandler<Exception,ClappRuntimeException> futureExceptionHandler;
+	private final ClappExceptionRethrowHandler<Exception,ClappRuntimeException> closingIChannelExceptionHandler;
+	private final ClappExceptionConsumerHandler<Exception> closingOChannelExceptionHandler;
 	
 	public static final class ClappContextBuilder {
 		
@@ -22,16 +24,21 @@ public final class ClappContext {
 		private ExecutorService executor;
 		private final static ExecutorService defaultExecutor = Executors.newFixedThreadPool(10);
 		
-		private ClappExceptionHandler<Exception,ClappRuntimeException> futureExceptionHandler;
-		private final static ClappExceptionHandler<Exception,ClappRuntimeException> defaultFutureExceptionHandler = ex -> new FutureClappRuntimeException();
+		private ClappExceptionRethrowHandler<Exception,ClappRuntimeException> futureExceptionHandler;
+		private final static ClappExceptionRethrowHandler<Exception,ClappRuntimeException> defaultFutureExceptionHandler = ex -> new FutureClappRuntimeException();
 		
-		private ClappExceptionHandler<Exception,ClappRuntimeException> channelExceptionHandler;
-		private final static ClappExceptionHandler<Exception,ClappRuntimeException> defaultChannelExceptionHandler = ex -> new ChannelClappRuntimeException();
+		
+		private ClappExceptionRethrowHandler<Exception,ClappRuntimeException> closingIChannelExceptionHandler;
+		private final static ClappExceptionRethrowHandler<Exception,ClappRuntimeException> defaultClosingIChannelExceptionHandler = ex -> new ClosingIChannelClappRuntimeException();
+		
+		private ClappExceptionConsumerHandler<Exception> closingOChannelExceptionHandler;
+		private final static ClappExceptionConsumerHandler<Exception> defaultClosingOChannelExceptionHandler = ex -> {return;};
 		
 		private ClappContextBuilder(ClappContext clappContext){
 			this.executor = clappContext.executor;
 			this.futureExceptionHandler = clappContext.futureExceptionHandler;
-			this.channelExceptionHandler = clappContext.channelExceptionHandler;
+			this.closingIChannelExceptionHandler = clappContext.closingIChannelExceptionHandler;
+			this.closingOChannelExceptionHandler = clappContext.closingOChannelExceptionHandler;
 		}
 		
 		
@@ -40,18 +47,28 @@ public final class ClappContext {
 			return this;
 		}
 		
-		public ClappContextBuilder withFutureHandler(final ClappExceptionHandler<Exception,ClappRuntimeException> futureExceptionHandler) {
+		public ClappContextBuilder withFutureHandler(final ClappExceptionRethrowHandler<Exception,ClappRuntimeException> futureExceptionHandler) {
 			this.futureExceptionHandler = futureExceptionHandler;
 			return this;
 		}
 		
-		public ClappContextBuilder withChannelHandler(final ClappExceptionHandler<Exception,ClappRuntimeException> channelExceptionHandler) {
-			this.channelExceptionHandler = channelExceptionHandler;
+		public ClappContextBuilder withClosingIChannelExceptionHandler(final ClappExceptionRethrowHandler<Exception,ClappRuntimeException> closingIChannelExceptionHandler) {
+			this.closingIChannelExceptionHandler = closingIChannelExceptionHandler;
 			return this;
 		}
 		
+		public ClappContextBuilder withClosingOChannelExceptionHandler(final ClappExceptionConsumerHandler<Exception> closingOChannelExceptionHandler) {
+			this.closingOChannelExceptionHandler = closingOChannelExceptionHandler;
+			return this;
+		}
+		
+		
 		public ClappContext build() {
-			return new ClappContext(executor, futureExceptionHandler, channelExceptionHandler);
+			return new ClappContext(
+					executor, 
+					futureExceptionHandler, 
+					closingIChannelExceptionHandler, 
+					closingOChannelExceptionHandler);
 		}
 		
 		
@@ -64,16 +81,24 @@ public final class ClappContext {
 		}
 		
 		public final static ClappContext defaultClapContext(){
-			return new ClappContext(defaultExecutor, defaultFutureExceptionHandler, defaultChannelExceptionHandler);
+			return new ClappContext(
+					defaultExecutor, 
+					defaultFutureExceptionHandler, 
+					defaultClosingIChannelExceptionHandler, 
+					defaultClosingOChannelExceptionHandler);
 		}
 		
 	}
 	
-	private ClappContext(final ExecutorService executor, final ClappExceptionHandler<Exception,ClappRuntimeException> futureExceptionHandler, final ClappExceptionHandler<Exception,ClappRuntimeException> channelExceptionHandler) {
+	private ClappContext(final ExecutorService executor, 
+			final ClappExceptionRethrowHandler<Exception,ClappRuntimeException> futureExceptionHandler, 
+			final ClappExceptionRethrowHandler<Exception,ClappRuntimeException> closingIChannelExceptionHandler,
+			final ClappExceptionConsumerHandler<Exception> closingOChannelExceptionHandler) {
 		super();
 		this.executor = executor;
 		this.futureExceptionHandler = futureExceptionHandler;
-		this.channelExceptionHandler = channelExceptionHandler;
+		this.closingIChannelExceptionHandler = closingIChannelExceptionHandler;
+		this.closingOChannelExceptionHandler = closingOChannelExceptionHandler;
 	}
 	
 	
@@ -82,12 +107,18 @@ public final class ClappContext {
 	}
 	
 
-	public ClappExceptionHandler<Exception,ClappRuntimeException> getFutureExceptionHandler() {
+	public ClappExceptionRethrowHandler<Exception,ClappRuntimeException> getFutureExceptionHandler() {
 		return futureExceptionHandler;
 	}
 	
-	public ClappExceptionHandler<Exception,ClappRuntimeException> getChannelExceptionHandler() {
-		return channelExceptionHandler;
+
+	public ClappExceptionConsumerHandler<Exception> getClosingOChannelExceptionHandler() {
+		return closingOChannelExceptionHandler;
+	}
+
+
+	public ClappExceptionRethrowHandler<Exception,ClappRuntimeException> getClosingIChannelExceptionHandler() {
+		return closingIChannelExceptionHandler;
 	}
 
 }

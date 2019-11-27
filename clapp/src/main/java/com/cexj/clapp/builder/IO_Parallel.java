@@ -1,5 +1,7 @@
 package com.cexj.clapp.builder;
 
+import java.util.function.Supplier;
+
 import com.cexj.clapp.channels.IChannel;
 import com.cexj.clapp.context.ClappContext;
 import com.cexj.clapp.utils.FunctionFromFuture;
@@ -16,7 +18,7 @@ public final class IO_Parallel<T,F extends FunctionFromFuture<T,?>,G extends Fun
 		return new IO_Parallel<>(io);
 	}
 	
-	public <U> IO_Read<U, FunctionFromFuture<U, F>, F, R> andReadFrom(final IChannel<U> channel){
+	public <U> IO_Read<U, FunctionFromFuture<U, F>, F, R> andReadFrom(final Supplier<IChannel<U>> channel){
 		return IO_Read.of(io.andReadFrom(channel));
 	}
 	

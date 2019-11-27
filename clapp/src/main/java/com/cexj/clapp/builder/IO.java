@@ -3,6 +3,7 @@ package com.cexj.clapp.builder;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.function.Supplier;
 
 import com.cexj.clapp.channels.IChannel;
 import com.cexj.clapp.channels.IOChannel;
@@ -30,12 +31,12 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 		return new IO<>(ioChannel, optReader, defaultCurrentClappContext);
 	}
 
-	<U> IO<U, FunctionFromFuture<U, F>, F, R> andReadFrom(final IChannel<U> channel) {
+	<U> IO<U, FunctionFromFuture<U, F>, F, R> andReadFrom(final Supplier<IChannel<U>> channel) {
 		return IO.of(IOChannel.fromIChannel(channel), Optional.of(this), defaultCurrentClappContext.withDefault());
 	}
 
 
-	IO<T, F, G, R> andWriteItTo(final OChannel<T> channel) {
+	IO<T, F, G, R> andWriteItTo(final Supplier<OChannel<T>> channel) {
 		return IO.of(ioChannel.addOChannel(channel), optNextReader, defaultCurrentClappContext);
 	}
 
@@ -57,13 +58,17 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 	@SuppressWarnings("unchecked")
 	IChannel<R> execute(final F f) {
 		return IChannel.fromSupplier(() -> {
-			var t = ioChannel.pullAndPush();
-			try {
+			try(IChannel<T> iChannel  = ioChannel.getIChannel()){
+				var t = iChannel.pull();
+				defaultCurrentClappContext.getCurrentValue().getClosingIChannelExceptionHandler();
+				ioChannel.getOChannel().ifPresent(oChannel -> oChannel.pushAndClose(t, defaultCurrentClappContext.getCurrentValue().getClosingOChannelExceptionHandler()));
 				return optNextReader.map(r -> notLastApply(f, t, r)).orElse((R) f.apply(t));
 			} catch (InterruptedException | ExecutionException ex) {
 				throw defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler().handle(ex);
-			}}
-		);
+			} catch (Exception ex) {
+				throw defaultCurrentClappContext.getCurrentValue().getClosingIChannelExceptionHandler().handle(ex);
+			}
+		});
 	}
 
 	@SuppressWarnings("unchecked")

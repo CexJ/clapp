@@ -5,12 +5,22 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
-import com.cexj.clapp.exceptions.handler.ClappExceptionHandler;
+import com.cexj.clapp.exceptions.handler.ClappExceptionConsumerHandler;
+import com.cexj.clapp.exceptions.handler.ClappExceptionRethrowHandler;
 import com.cexj.clapp.exceptions.runtime.ClappRuntimeException;
 
 public interface OChannel<O> extends AutoCloseable {
 
-	public void push(O o);
+	public void push(final O o);
+	
+	public default void pushAndClose(final O o, final ClappExceptionConsumerHandler<Exception> handlerCloseException){
+		push(o);
+		try {
+			close();
+		} catch (Exception e) {
+			handlerCloseException.handle(e);
+		}
+	}
 	
 	public static <O> OChannel<O> fromConsumer(final Consumer<O> consumer){
 		return new OChannel<O>() {
@@ -24,12 +34,18 @@ public interface OChannel<O> extends AutoCloseable {
 				consumer.accept(o);
 			}
 
+			@Override
+			public void pushAndClose(final O o, final ClappExceptionConsumerHandler<Exception> handler) {
+				consumer.accept(o);
+			}
+			
+
 			
 		};
 		
 	}
 	
-	public static <O> OChannel<Future<O>> inParallel(final OChannel<O> channel, final ExecutorService executor, final ClappExceptionHandler<Exception, ClappRuntimeException> handler){
+	public static <O> OChannel<Future<O>> inParallel(final OChannel<O> channel, final ExecutorService executor, final ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler){
 		return new OChannel<Future<O>>() {
 
 			@Override
@@ -47,22 +63,22 @@ public interface OChannel<O> extends AutoCloseable {
 					}
 				});
 			}
+
+			@Override
+			public void pushAndClose(final Future<O> o, final ClappExceptionConsumerHandler<Exception> handlerCloseException) {
+				executor.submit(() -> {
+					try {
+						channel.push(o.get());
+						channel.close();
+					} catch (InterruptedException | ExecutionException ex) {
+						throw handler.handle(ex);
+					} catch (Exception ex) {
+						handlerCloseException.handle(ex);
+					}
+				});
+				
+			}
 			
-		};
-	}
-	
-	
-
-	public static <O> OChannel<O> empty() {
-		return new OChannel<O>() {
-
-			@Override
-			public void close() throws Exception {
-				}
-
-			@Override
-			public void push(O o) {
-				}
 		};
 	}
 
@@ -87,7 +103,7 @@ public interface OChannel<O> extends AutoCloseable {
 					oChannel.push(o);
 				}
 			}
-			
+		
 		};
 	}
 }
