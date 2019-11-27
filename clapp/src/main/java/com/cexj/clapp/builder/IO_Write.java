@@ -1,9 +1,9 @@
 package com.cexj.clapp.builder;
 
 import java.util.concurrent.Future;
-import java.util.function.Supplier;
 
 import com.cexj.clapp.channels.IChannel;
+import com.cexj.clapp.channels.IChannel_Open;
 import com.cexj.clapp.context.ClappContext;
 import com.cexj.clapp.utils.FunctionFromFuture;
 
@@ -19,7 +19,7 @@ public final class IO_Write<T,F extends FunctionFromFuture<T,?>,G extends Functi
 		return new IO_Write<>(io);
 	}
 
-	public <U> IO_Read<U, FunctionFromFuture<U, F>, F, R> andReadFrom(final Supplier<IChannel<U>> channel){
+	public <U> IO_Read<U, FunctionFromFuture<U, F>, F, R> andReadFrom(final IChannel<U> channel){
 		return IO_Read.of(io.andReadFrom(channel));
 	}
 	
@@ -35,7 +35,7 @@ public final class IO_Write<T,F extends FunctionFromFuture<T,?>,G extends Functi
 		return IO_Context.of(io.withGlobalContext(defaultContext));
 	}
 	
-	public IChannel<R> execute(final F f) {
+	public IChannel_Open<R> execute(final F f) {
 		return io.execute(f);
 	}
 	

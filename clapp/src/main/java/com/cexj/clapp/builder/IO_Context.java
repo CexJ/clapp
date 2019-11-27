@@ -1,8 +1,7 @@
 package com.cexj.clapp.builder;
 
-import java.util.function.Supplier;
-
 import com.cexj.clapp.channels.IChannel;
+import com.cexj.clapp.channels.IChannel_Open;
 import com.cexj.clapp.utils.FunctionFromFuture;
 
 public final class IO_Context<T,F extends FunctionFromFuture<T,?>,G extends FunctionFromFuture<?,?>,R> {
@@ -17,11 +16,11 @@ public final class IO_Context<T,F extends FunctionFromFuture<T,?>,G extends Func
 		return new IO_Context<>(io);
 	}
 	
-	public <U> IO_Read<U, FunctionFromFuture<U, F>, F, R> andReadFrom(final Supplier<IChannel<U>> channel){
+	public <U> IO_Read<U, FunctionFromFuture<U, F>, F, R> andReadFrom(final IChannel<U> channel){
 		return IO_Read.of(io.andReadFrom(channel));
 	}
 	
-	public IChannel<R> execute(final F f) {
+	public IChannel_Open<R> execute(final F f) {
 		return io.execute(f);
 	}
 }

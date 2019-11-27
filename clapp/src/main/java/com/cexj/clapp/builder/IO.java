@@ -3,9 +3,9 @@ package com.cexj.clapp.builder;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.function.Supplier;
 
 import com.cexj.clapp.channels.IChannel;
+import com.cexj.clapp.channels.IChannel_Open;
 import com.cexj.clapp.channels.IOChannel;
 import com.cexj.clapp.channels.OChannel;
 import com.cexj.clapp.context.ClappContext;
@@ -31,12 +31,12 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 		return new IO<>(ioChannel, optReader, defaultCurrentClappContext);
 	}
 
-	<U> IO<U, FunctionFromFuture<U, F>, F, R> andReadFrom(final Supplier<IChannel<U>> channel) {
+	<U> IO<U, FunctionFromFuture<U, F>, F, R> andReadFrom(final IChannel<U> channel) {
 		return IO.of(IOChannel.fromIChannel(channel), Optional.of(this), defaultCurrentClappContext.withDefault());
 	}
 
 
-	IO<T, F, G, R> andWriteItTo(final Supplier<OChannel<T>> channel) {
+	IO<T, F, G, R> andWriteItTo(final OChannel<T> channel) {
 		return IO.of(ioChannel.addOChannel(channel), optNextReader, defaultCurrentClappContext);
 	}
 
@@ -56,12 +56,12 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 	}
 
 	@SuppressWarnings("unchecked")
-	IChannel<R> execute(final F f) {
-		return IChannel.fromSupplier(() -> {
-			try(IChannel<T> iChannel  = ioChannel.getIChannel()){
+	IChannel_Open<R> execute(final F f) {
+		return IChannel_Open.fromSupplier(() -> {
+			try(IChannel_Open<T> iChannel  = ioChannel.openIChannel()){
 				var t = iChannel.pull();
 				defaultCurrentClappContext.getCurrentValue().getClosingIChannelExceptionHandler();
-				ioChannel.getOChannel().ifPresent(oChannel -> oChannel.pushAndClose(t, defaultCurrentClappContext.getCurrentValue().getClosingOChannelExceptionHandler()));
+				ioChannel.openOChannel().ifPresent(oChannel -> oChannel.pushAndClose(t, defaultCurrentClappContext.getCurrentValue().getClosingOChannelExceptionHandler()));
 				return optNextReader.map(r -> notLastApply(f, t, r)).orElse((R) f.apply(t));
 			} catch (InterruptedException | ExecutionException ex) {
 				throw defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler().handle(ex);
