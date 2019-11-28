@@ -13,7 +13,8 @@ public final class ClappContext {
 	
 	public static final ClappContext DEFAULT_CONTEXT = ClappContextBuilder.defaultClapContext();
 	
-	private final ExecutorService executor;
+	private final ExecutorService iExecutor;
+	private final ExecutorService oExecutor;
 	private final ClappExceptionRethrowHandler<Exception,ClappRuntimeException> futureExceptionHandler;
 	private final ClappExceptionRethrowHandler<Exception,ClappRuntimeException> closingIChannelExceptionHandler;
 	private final ClappExceptionConsumerHandler<Exception> closingOChannelExceptionHandler;
@@ -21,8 +22,11 @@ public final class ClappContext {
 	public static final class ClappContextBuilder {
 		
 		
-		private ExecutorService executor;
-		private final static ExecutorService defaultExecutor = Executors.newFixedThreadPool(10);
+		private ExecutorService iExecutor;
+		private final static ExecutorService defaultIExecutor = Executors.newFixedThreadPool(10);
+		
+		private ExecutorService oExecutor;
+		private final static ExecutorService defaultOExecutor = Executors.newFixedThreadPool(10);
 		
 		private ClappExceptionRethrowHandler<Exception,ClappRuntimeException> futureExceptionHandler;
 		private final static ClappExceptionRethrowHandler<Exception,ClappRuntimeException> defaultFutureExceptionHandler = ex -> new FutureClappRuntimeException();
@@ -35,15 +39,20 @@ public final class ClappContext {
 		private final static ClappExceptionConsumerHandler<Exception> defaultClosingOChannelExceptionHandler = ex -> {return;};
 		
 		private ClappContextBuilder(ClappContext clappContext){
-			this.executor = clappContext.executor;
+			this.iExecutor = clappContext.iExecutor;
 			this.futureExceptionHandler = clappContext.futureExceptionHandler;
 			this.closingIChannelExceptionHandler = clappContext.closingIChannelExceptionHandler;
 			this.closingOChannelExceptionHandler = clappContext.closingOChannelExceptionHandler;
 		}
 		
 		
-		public ClappContextBuilder withExecutor(final ExecutorService executor) {
-			this.executor = executor;
+		public ClappContextBuilder withIExecutor(final ExecutorService iExecutor) {
+			this.iExecutor = iExecutor;
+			return this;
+		}
+		
+		public ClappContextBuilder withOExecutor(final ExecutorService oExecutor) {
+			this.oExecutor = oExecutor;
 			return this;
 		}
 		
@@ -65,7 +74,8 @@ public final class ClappContext {
 		
 		public ClappContext build() {
 			return new ClappContext(
-					executor, 
+					iExecutor, 
+					oExecutor, 
 					futureExceptionHandler, 
 					closingIChannelExceptionHandler, 
 					closingOChannelExceptionHandler);
@@ -82,7 +92,8 @@ public final class ClappContext {
 		
 		public final static ClappContext defaultClapContext(){
 			return new ClappContext(
-					defaultExecutor, 
+					defaultIExecutor, 
+					defaultOExecutor, 
 					defaultFutureExceptionHandler, 
 					defaultClosingIChannelExceptionHandler, 
 					defaultClosingOChannelExceptionHandler);
@@ -90,22 +101,27 @@ public final class ClappContext {
 		
 	}
 	
-	private ClappContext(final ExecutorService executor, 
+	private ClappContext(final ExecutorService iExecutor, 
+			final ExecutorService oExecutor, 
 			final ClappExceptionRethrowHandler<Exception,ClappRuntimeException> futureExceptionHandler, 
 			final ClappExceptionRethrowHandler<Exception,ClappRuntimeException> closingIChannelExceptionHandler,
 			final ClappExceptionConsumerHandler<Exception> closingOChannelExceptionHandler) {
 		super();
-		this.executor = executor;
+		this.iExecutor = iExecutor;
+		this.oExecutor = oExecutor;
 		this.futureExceptionHandler = futureExceptionHandler;
 		this.closingIChannelExceptionHandler = closingIChannelExceptionHandler;
 		this.closingOChannelExceptionHandler = closingOChannelExceptionHandler;
 	}
 	
 	
-	public ExecutorService getExecutor() {
-		return executor;
+	public ExecutorService getIExecutor() {
+		return iExecutor;
 	}
 	
+	public ExecutorService getOExecutor() {
+		return oExecutor;
+	}
 
 	public ClappExceptionRethrowHandler<Exception,ClappRuntimeException> getFutureExceptionHandler() {
 		return futureExceptionHandler;

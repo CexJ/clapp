@@ -35,12 +35,15 @@ public class IOChannel<T> {
 		return IOChannel.of(iChannel, newOChannel);
 	}
 	
+	public IOChannel<T> addIChannel(IChannel<T> channel, final ExecutorService executor, final ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler) {
+		IChannel<T> newIChannel = () -> iChannel.open().pipe(channel.open(), executor, handler);
+		return IOChannel.of(newIChannel, oChannel);
+	}
 	
-	
-	public IOChannel<Future<T>> inParallel(final ExecutorService executor, final ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler) {
+	public IOChannel<Future<T>> inParallel(final ExecutorService iExecutor, final ExecutorService oExecutor, final ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler) {
 		var trigger = new CompletableFuture<Optional<T>>(); 
-		IChannel<Future<T>> newIChannel = () -> IChannel_Open.inParallel(iChannel.open(), executor, trigger);
-		Optional<OChannel<Future<T>>> newOChannel = oChannel.map(o -> () -> OChannel_Open.inParallel(o.open(), executor, handler, trigger));
+		IChannel<Future<T>> newIChannel = () -> IChannel_Open.inParallel(iChannel.open(), iExecutor, trigger);
+		Optional<OChannel<Future<T>>> newOChannel = oChannel.map(o -> () -> OChannel_Open.inParallel(o.open(), oExecutor, handler, trigger));
 		return IOChannel.of(newIChannel, newOChannel);
 	}
 
@@ -51,5 +54,7 @@ public class IOChannel<T> {
 	public Optional<OChannel_Open<T>> openOChannel() {
 		return oChannel.map(OChannel::open);
 	}
+
+	
 
 }

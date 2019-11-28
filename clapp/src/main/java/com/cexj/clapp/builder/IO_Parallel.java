@@ -17,8 +17,8 @@ public final class IO_Parallel<T,F extends FunctionFromFuture<T,?>,G extends Fun
 		return new IO_Parallel<>(io);
 	}
 	
-	public <U> IO_Read<U, FunctionFromFuture<U, F>, F, R> andReadFrom(final IChannel<U> channel){
-		return IO_Read.of(io.andReadFrom(channel));
+	public <U> IO_Read<U, FunctionFromFuture<U, F>, F, R> thenReadFrom(final IChannel<U> channel){
+		return IO_Read.of(io.thenReadFrom(channel));
 	}
 	
 	public IO_Context<T, F, G, R> withLocalContext(ClappContext currentContext){

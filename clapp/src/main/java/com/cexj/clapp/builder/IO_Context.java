@@ -16,8 +16,8 @@ public final class IO_Context<T,F extends FunctionFromFuture<T,?>,G extends Func
 		return new IO_Context<>(io);
 	}
 	
-	public <U> IO_Read<U, FunctionFromFuture<U, F>, F, R> andReadFrom(final IChannel<U> channel){
-		return IO_Read.of(io.andReadFrom(channel));
+	public <U> IO_Read<U, FunctionFromFuture<U, F>, F, R> thenReadFrom(final IChannel<U> channel){
+		return IO_Read.of(io.thenReadFrom(channel));
 	}
 	
 	public IChannel_Open<R> execute(final F f) {

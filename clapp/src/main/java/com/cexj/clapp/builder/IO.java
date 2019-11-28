@@ -31,8 +31,12 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 		return new IO<>(ioChannel, optReader, defaultCurrentClappContext);
 	}
 
-	<U> IO<U, FunctionFromFuture<U, F>, F, R> andReadFrom(final IChannel<U> channel) {
+	<U> IO<U, FunctionFromFuture<U, F>, F, R> thenReadFrom(final IChannel<U> channel) {
 		return IO.of(IOChannel.fromIChannel(channel), Optional.of(this), defaultCurrentClappContext.withDefault());
+	}
+	
+	IO<T, F, G, R> orFrom(final IChannel<T> channel){
+		return IO.of(ioChannel.addIChannel(channel), optNextReader, defaultCurrentClappContext);
 	}
 
 
@@ -50,7 +54,8 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 
 	IO<Future<T>, FunctionFromFuture<Future<T>, ?>, G, R> inParallel() {
 		return IO.of(
-				ioChannel.inParallel(defaultCurrentClappContext.getCurrentValue().getExecutor(),
+				ioChannel.inParallel(defaultCurrentClappContext.getCurrentValue().getIExecutor(),
+						defaultCurrentClappContext.getCurrentValue().getOExecutor(),
 						defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler()),
 				optNextReader, defaultCurrentClappContext);
 	}
