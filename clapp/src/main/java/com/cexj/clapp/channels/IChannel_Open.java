@@ -17,7 +17,6 @@ public interface IChannel_Open<I> extends AutoCloseable {
 
 	public static <I> IChannel_Open<I> fromSupplier(final Supplier<I> supplier){
 		return new IChannel_Open<I>() {
-
 			@Override
 			public void close(){
 			}
@@ -26,8 +25,6 @@ public interface IChannel_Open<I> extends AutoCloseable {
 			public I pull() {
 				return supplier.get();
 			}
-
-			
 		};
 		
 	}
@@ -66,29 +63,18 @@ public interface IChannel_Open<I> extends AutoCloseable {
 				optOriginalPull.ifPresent(f -> f.cancel(true));
 				optChannelPull.ifPresent(f -> f.cancel(true));
 				try {
-					optOriginal.ifPresent(c -> {
-						try {
-							c.close();
-						} catch (Exception ex) {
-							throw handler.handle(ex);
-						}
-					});
+					closeOptionalChannel(optOriginal,handler);
 				} finally {
-					optChannel.ifPresent(c ->{ 
-						try {
-						c.close();
-					} catch (Exception ex) {
-						throw handler.handle(ex);
-					}});
+					closeOptionalChannel(optChannel,handler);
 				}
 			}
 
 			@Override
 			public I pull() {
-				optOriginal = Optional.of(original);
-				optChannel = Optional.of(channel);
 				var originalPull = executor.submit(() -> original.pull());
 				var channelPull = executor.submit(() -> channel.pull());
+				optOriginal = Optional.of(original);
+				optChannel = Optional.of(channel);
 				optOriginalPull = Optional.of(originalPull);
 				optChannelPull = Optional.of(channelPull);
 				var futures = Stream.of(Tuple.of(original, originalPull), 
@@ -100,9 +86,28 @@ public interface IChannel_Open<I> extends AutoCloseable {
 					futures.stream()
 						.filter(cf -> ! cf.firstEquals(tr))
 						.forEach(cf -> cleanChannels(handler, cf)));
-				return null;
+				return optTupleResult.map(Tuple::getSecond).orElseThrow();
 			}
 
+			private void closeOptionalChannel(
+					final Optional<IChannel_Open<I>> optChannel, final ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler) {
+				optChannel.ifPresent(c -> {
+					try {
+						c.close();
+					} catch (Exception ex) {
+						throw handler.handle(ex);
+					}
+				});
+			}
+			
+			private I runFuture(ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler, Future<I> f) {
+				try {
+					return f.get();
+				} catch (InterruptedException | ExecutionException ex) {
+					throw handler.handle(ex);
+				}
+			}
+			
 			private void cleanChannels(ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler,
 					Tuple<IChannel_Open<I>, Future<I>> cf) {
 				cf.getSecond().cancel(true);
@@ -113,13 +118,7 @@ public interface IChannel_Open<I> extends AutoCloseable {
 				}
 			}
 
-			private I runFuture(ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler, Future<I> f) {
-				try {
-					return f.get();
-				} catch (InterruptedException | ExecutionException ex) {
-					throw handler.handle(ex);
-				}
-			}
+			
 		};
 	}
 

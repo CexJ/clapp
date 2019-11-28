@@ -36,28 +36,34 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 	}
 	
 	IO<T, F, G, R> orFrom(final IChannel<T> channel){
-		return IO.of(ioChannel.addIChannel(channel), optNextReader, defaultCurrentClappContext);
+		var executor = defaultCurrentClappContext.getCurrentValue().getIExecutor();
+		var handler = defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler();
+		var newIOChannel = ioChannel.addIChannel(channel, executor, handler);
+		return IO.of(newIOChannel, optNextReader, defaultCurrentClappContext);
 	}
 
 
 	IO<T, F, G, R> andWriteItTo(final OChannel<T> channel) {
-		return IO.of(ioChannel.addOChannel(channel), optNextReader, defaultCurrentClappContext);
+		var newIOChannel = ioChannel.addOChannel(channel);
+		return IO.of(newIOChannel, optNextReader, defaultCurrentClappContext);
 	}
 
 	IO<T, F, G, R> withLocalContext(ClappContext currentContext) {
-		return IO.of(ioChannel, optNextReader, defaultCurrentClappContext.withNewCurrent(currentContext));
+		var newDefaultCurrentClappContext = defaultCurrentClappContext.withNewCurrent(currentContext);
+		return IO.of(ioChannel, optNextReader, newDefaultCurrentClappContext);
 	}
 
 	IO<T, F, G, R> withGlobalContext(ClappContext defaultContext) {
-		return IO.of(ioChannel, optNextReader, DefaultCurrent.fromDefault(defaultContext));
+		var newDefaultCurrentClappContext = DefaultCurrent.fromDefault(defaultContext);
+		return IO.of(ioChannel, optNextReader, newDefaultCurrentClappContext);
 	}
 
 	IO<Future<T>, FunctionFromFuture<Future<T>, ?>, G, R> inParallel() {
-		return IO.of(
-				ioChannel.inParallel(defaultCurrentClappContext.getCurrentValue().getIExecutor(),
-						defaultCurrentClappContext.getCurrentValue().getOExecutor(),
-						defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler()),
-				optNextReader, defaultCurrentClappContext);
+		var iExecutor = defaultCurrentClappContext.getCurrentValue().getIExecutor();
+		var oExecutor = defaultCurrentClappContext.getCurrentValue().getOExecutor();
+		var handler = defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler();
+		var newIOChannel = ioChannel.inParallel(iExecutor, oExecutor, handler);
+		return IO.of(newIOChannel, optNextReader, defaultCurrentClappContext);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -65,13 +71,17 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 		return IChannel_Open.fromSupplier(() -> {
 			try(IChannel_Open<T> iChannel  = ioChannel.openIChannel()){
 				var t = iChannel.pull();
-				defaultCurrentClappContext.getCurrentValue().getClosingIChannelExceptionHandler();
-				ioChannel.openOChannel().ifPresent(oChannel -> oChannel.pushAndClose(t, defaultCurrentClappContext.getCurrentValue().getClosingOChannelExceptionHandler()));
-				return optNextReader.map(r -> notLastApply(f, t, r)).orElse((R) f.apply(t));
+				var handler = defaultCurrentClappContext.getCurrentValue().getClosingOChannelExceptionHandler();
+				ioChannel.openOChannel().ifPresent(oChannel -> oChannel.pushAndClose(t, handler));
+				return optNextReader
+						.map(r -> notLastApply(f, t, r))
+						.orElse((R) f.apply(t));
 			} catch (InterruptedException | ExecutionException ex) {
-				throw defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler().handle(ex);
+				var handler = defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler();
+				throw handler.handle(ex);
 			} catch (Exception ex) {
-				throw defaultCurrentClappContext.getCurrentValue().getClosingIChannelExceptionHandler().handle(ex);
+				var handler = defaultCurrentClappContext.getCurrentValue().getClosingIChannelExceptionHandler();
+				throw handler.handle(ex);
 			}
 		});
 	}
@@ -82,7 +92,8 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 			var g = (G) f.apply(t);
 			return r.execute(g).pull();
 		} catch (InterruptedException | ExecutionException ex) {
-			throw defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler().handle(ex);
+			var handler = defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler();
+			throw handler.handle(ex);
 		}
 
 	}

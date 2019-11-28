@@ -16,6 +16,7 @@ public final class Clapp {
 	}
 	
 	public <R> Type_GlobalContext<R> returnType(final Class<R> clazz) {
-		return Type_GlobalContext.of(Type.of(DefaultCurrent.fromDefault(globalContext)));
+		var defaultCurrentContext = DefaultCurrent.fromDefault(globalContext);
+		return Type_GlobalContext.of(Type.of(defaultCurrentContext));
 	}
 }

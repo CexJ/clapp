@@ -21,11 +21,13 @@ final class Type<R>{
 	}
 	
 	Type<R> withLocalContext(ClappContext currentContext){
-		return Type.of(defaultCurrentContext.withNewCurrent(currentContext));
+		var newDefaultCurrentContext = defaultCurrentContext.withNewCurrent(currentContext);
+		return Type.of(newDefaultCurrentContext);
 	}
 	
 	<A> IO_Read<A,FunctionFromFuture<A,R>,FunctionFromFuture<A,R>,R> readFrom(final IChannel_Open<A> channel) {
-		return IO_Read.of(IO.of(IOChannel.fromIChannel(() -> channel), Optional.empty(), defaultCurrentContext));
+		var newIOChannel = IOChannel.fromIChannel(() -> channel);
+		return IO_Read.of(IO.of(newIOChannel, Optional.empty(), defaultCurrentContext));
 	}
 	
 }
