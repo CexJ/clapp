@@ -25,6 +25,10 @@ public final class IO_Read<T,F extends FunctionFromFuture<T,?>,G extends Functio
 		return IO_Read.of(newIo);
 	}
 	
+	public IO_Read<T, F, G, R>orReadFrom(final IChannel<T> channel){
+		var newIo = io.orFrom(channel);
+		return IO_Read.of(newIo);
+	}
 	
 	public IO_Write<T, F, G, R> andWriteItTo(final OChannel<T> channel) {
 		var newIo = io.andWriteItTo(channel);
