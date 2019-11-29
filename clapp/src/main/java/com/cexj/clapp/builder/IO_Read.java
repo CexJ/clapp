@@ -25,7 +25,7 @@ public final class IO_Read<T,F extends FunctionFromFuture<T,?>,G extends Functio
 		return IO_Read.of(newIo);
 	}
 	
-	public IO_Read<T, F, G, R>orReadFrom(final IChannel<T> channel){
+	public IO_Read<T, F, G, R>orFrom(final IChannel<T> channel){
 		var newIo = io.orFrom(channel);
 		return IO_Read.of(newIo);
 	}
@@ -35,7 +35,7 @@ public final class IO_Read<T,F extends FunctionFromFuture<T,?>,G extends Functio
 		return IO_Write.of(newIo);
 	}
 	
-	public IO_Parallel<Future<T>, FunctionFromFuture<Future<T>, ?>, G, R> inParallel() {
+	public IO_Parallel<Future<T>, FunctionFromFuture<Future<T>, G>, G, R> inParallel() {
 		var newIo = io.inParallel();
 		return IO_Parallel.of(newIo);
 	}

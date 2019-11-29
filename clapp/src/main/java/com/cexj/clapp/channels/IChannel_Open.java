@@ -11,7 +11,7 @@ import java.util.stream.Stream;
 
 import com.cexj.clapp.exceptions.handler.ClappExceptionRethrowHandler;
 import com.cexj.clapp.exceptions.runtime.ClappRuntimeException;
-import com.cexj.clapp.utils.Tuple;
+import com.cexj.clapp.utils.tuple.Tuple;
 
 public interface IChannel_Open<I> extends AutoCloseable {
 

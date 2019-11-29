@@ -58,12 +58,11 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 		return IO.of(ioChannel, optNextReader, newDefaultCurrentClappContext);
 	}
 
-	IO<Future<T>, FunctionFromFuture<Future<T>, ?>, G, R> inParallel() {
-		var iExecutor = defaultCurrentClappContext.getCurrentValue().getIExecutor();
-		var oExecutor = defaultCurrentClappContext.getCurrentValue().getOExecutor();
-		var handler = defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler();
-		var newIOChannel = ioChannel.inParallel(iExecutor, oExecutor, handler);
-		return IO.of(newIOChannel, optNextReader, defaultCurrentClappContext);
+	IO<Future<T>, FunctionFromFuture<Future<T>, G>, G, R> inParallel() {
+		return IO.of(ioChannel.inParallel(defaultCurrentClappContext.getCurrentValue().getIExecutor(),
+				defaultCurrentClappContext.getCurrentValue().getOExecutor(),
+				defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler()),
+				optNextReader, defaultCurrentClappContext);
 	}
 
 	@SuppressWarnings("unchecked")

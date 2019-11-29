@@ -24,7 +24,7 @@ public final class IO_Write<T,F extends FunctionFromFuture<T,?>,G extends Functi
 		return IO_Read.of(newIo);
 	}
 	
-	public IO_Parallel<Future<T>, FunctionFromFuture<Future<T>, ?>, G, R> inParallel() {
+	public IO_Parallel<Future<T>, FunctionFromFuture<Future<T>, G>, G, R> inParallel() {
 		var newIo = io.inParallel();
 		return IO_Parallel.of(newIo);
 	}

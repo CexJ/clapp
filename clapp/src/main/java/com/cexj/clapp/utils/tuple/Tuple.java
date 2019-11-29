@@ -1,4 +1,4 @@
-package com.cexj.clapp.utils;
+package com.cexj.clapp.utils.tuple;
 
 import java.util.function.Function;
 
