@@ -11,7 +11,7 @@ public final class Type_LocalContext<R> {
 		this.type = type;
 	}
 	
-	public <A> IO_Read<A,FunctionFromFuture<A,R>,FunctionFromFuture<A,R>,R> readFrom(final IChannel<A> channel) {
+	public <A> IO_Read<A,FunctionFromFuture<A,R>,FunctionFromFuture<A,R>,R,R> readFrom(final IChannel<A> channel) {
 		return type.readFrom(channel);
 	}
 

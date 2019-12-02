@@ -25,7 +25,7 @@ final class Type<R>{
 		return Type.of(newDefaultCurrentContext);
 	}
 	
-	<A> IO_Read<A,FunctionFromFuture<A,R>,FunctionFromFuture<A,R>,R> readFrom(final IChannel<A> channel) {
+	<A> IO_Read<A,FunctionFromFuture<A,R>,FunctionFromFuture<A,R>,R,R> readFrom(final IChannel<A> channel) {
 		var newIOChannel = IOChannel.fromIChannel(channel);
 		return IO_Read.of(IO.of(newIOChannel, Optional.empty(), defaultCurrentContext));
 	}

@@ -15,7 +15,7 @@ public final class Type_GlobalContext<R> {
 		return new Type_GlobalContext<>(type);
 	}
 	
-	public <A> IO_Read<A,FunctionFromFuture<A,R>,FunctionFromFuture<A,R>,R> readFrom(final IChannel<A> channel) {
+	public <A> IO_Read<A,FunctionFromFuture<A,R>,FunctionFromFuture<A,R>,R,R> readFrom(final IChannel<A> channel) {
 		return type.readFrom(channel);
 	}
 	
