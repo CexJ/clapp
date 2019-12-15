@@ -8,55 +8,46 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
-import com.cexj.clapp.exceptions.handler.ClappExceptionRethrowHandler;
-import com.cexj.clapp.exceptions.runtime.ClappRuntimeException;
+import com.cexj.clapp.utils.either.Either;
 
 public class IChannel_Opened_Piped<I> implements IChannel_Opened<I>{
 	
 	private final List<IChannel_Opened<I>> listOfChannels;
 	private final ExecutorService executor; 
-	private final ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler;
 	
-	private IChannel_Opened_Piped(final List<IChannel_Opened<I>> listOfChannels, final ExecutorService executor, final ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler) {
+	private IChannel_Opened_Piped(final List<IChannel_Opened<I>> listOfChannels, final ExecutorService executor) {
 		this.listOfChannels = listOfChannels;
 		this.executor = executor;
-		this.handler = handler;
 	}
 	
-	private static <I> IChannel_Opened_Piped<I> getInstance(final List<IChannel_Opened<I>> listOfChannels, final ExecutorService executor, final ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler){
-		return new IChannel_Opened_Piped<I>(listOfChannels, executor, handler);
+	private static <I> IChannel_Opened_Piped<I> getInstance(final List<IChannel_Opened<I>> listOfChannels, final ExecutorService executor){
+		return new IChannel_Opened_Piped<I>(listOfChannels, executor);
 	}
 	
-	public static <I> IChannel_Opened_Piped<I> getInstance(final IChannel_Opened<I> first, IChannel_Opened<I> second, final ExecutorService executor, final ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler){
-		return getInstance(Arrays.asList(first, second), executor, handler);
+	public static <I> IChannel_Opened_Piped<I> getInstance(final IChannel_Opened<I> first, IChannel_Opened<I> second, final ExecutorService executor){
+		return getInstance(Arrays.asList(first, second), executor);
 	}
 	
 	@Override
-	public void close() throws Exception {
-		listOfChannels.forEach(c -> {
-			try {
-				c.close();
-			} catch (Exception e) {
-				handler.handle(e);
-			}
-		});
+	public void close(){
+		listOfChannels.forEach(c -> c.close());
 	}
 
 	@Override
-	public I pull() {
-		List<Callable<I>> s = listOfChannels.stream().<Callable<I>>map(c -> () -> c.pull()).collect(Collectors.toList());
+	public Either<Exception, I> pull() {
+		List<Callable<I>> s = listOfChannels.stream().<Callable<I>>map(c -> () -> c.pull().getRight()).collect(Collectors.toList());
 		try {
-			return executor.invokeAny(s);
+			return Either.right(executor.invokeAny(s));
 		} catch (InterruptedException | ExecutionException e) {
-			throw handler.handle(e);
+			return Either.left(e);
 		}
 	}	
 
 	@Override
-	public IChannel_Opened<I> pipe(final IChannel_Opened<I> channel, final ExecutorService executor, final ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler){
+	public IChannel_Opened<I> pipe(final IChannel_Opened<I> channel, final ExecutorService executor){
 		List<IChannel_Opened<I>> newListOfChannels = new ArrayList<>(listOfChannels);
 		newListOfChannels.add(channel);
-		return getInstance(newListOfChannels, executor, handler);
+		return getInstance(newListOfChannels, executor);
 	}			
 }
 

@@ -11,6 +11,7 @@ import com.cexj.clapp.channels.OChannel;
 import com.cexj.clapp.context.ClappContext;
 import com.cexj.clapp.utils.DefaultCurrent;
 import com.cexj.clapp.utils.FunctionFromFuture;
+import com.cexj.clapp.utils.either.Either;
 
 final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFuture<?, ?>, R, N> {
 
@@ -37,8 +38,7 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 	
 	IO<T, F, G, R, N> orFrom(final IChannel<T> channel){
 		var executor = defaultCurrentClappContext.getCurrentValue().getIExecutor();
-		var handler = defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler();
-		var newIOChannel = ioChannel.addIChannel(channel, executor, handler);
+		var newIOChannel = ioChannel.addIChannel(channel, executor);
 		return IO.of(newIOChannel, optNextReader, defaultCurrentClappContext);
 	}
 
@@ -68,36 +68,33 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 	@SuppressWarnings("unchecked")
 	IChannel_Opened<R> execute(final F f) {
 		return IChannel_Opened.fromSupplier(() -> {
-			try(IChannel_Opened<T> iChannel  = ioChannel.openIChannel()){
-				var t = iChannel.pull();
-				var handler = defaultCurrentClappContext.getCurrentValue().getClosingOChannelExceptionHandler();
-				ioChannel.openOChannel().ifPresent(oChannel -> oChannel.pushAndClose(t, handler));
+			var iChannel  = ioChannel.openIChannel();
+			try{
+				var t = iChannel.pull().getRight();
+				ioChannel.openOChannel().ifPresent(oChannel -> oChannel.pushAndClose(t));
 				return optNextReader
 						.map(r -> notLastApply(f, t, r))
-						.orElse((R) f.apply(t));
-			} catch (InterruptedException | ExecutionException ex) {
-				var handler = defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler();
-				throw handler.handle(ex);
+						.orElse(Either.right((R) f.apply(t)));
+			
 			} catch (Exception ex) {
-				var handler = defaultCurrentClappContext.getCurrentValue().getClosingIChannelExceptionHandler();
-				throw handler.handle(ex);
+				return Either.left(ex);
 			} finally {
 				var iExecutor = defaultCurrentClappContext.getCurrentValue().getIExecutor();
 				var oExecutor = defaultCurrentClappContext.getCurrentValue().getOExecutor();
 				iExecutor.shutdown();
 				oExecutor.shutdown();
+				iChannel.close();	
 			}
 		});
 	}
 
 	@SuppressWarnings("unchecked")
-	private R notLastApply(final F f, final T t, final IO<?, G, ?, R, ?> r) {
+	private Either<Exception, R> notLastApply(final F f, final T t, final IO<?, G, ?, R, ?> r) {
 		try {
 			var g = (G) f.apply(t);
 			return r.execute(g).pull();
 		} catch (InterruptedException | ExecutionException ex) {
-			var handler = defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler();
-			throw handler.handle(ex);
+			return Either.left(ex);
 		}
 
 	}

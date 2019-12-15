@@ -7,28 +7,25 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
-import com.cexj.clapp.exceptions.handler.ClappExceptionConsumerHandler;
 import com.cexj.clapp.exceptions.handler.ClappExceptionRethrowHandler;
 import com.cexj.clapp.exceptions.runtime.ClappRuntimeException;
 
-public interface OChannel_Opened<O> extends AutoCloseable {
+public interface OChannel_Opened<O> {
 
 	public void push(final O o);
+	public void close();
+
 	
-	public default void pushAndClose(final O o, final ClappExceptionConsumerHandler<Exception> handlerCloseException){
+	public default void pushAndClose(final O o){
 		push(o);
-		try {
-			close();
-		} catch (Exception e) {
-			handlerCloseException.handle(e);
-		}
+		close();
 	}
 	
 	public static <O> OChannel_Opened<O> fromConsumer(final Consumer<O> consumer){
 		return new OChannel_Opened<O>() {
 
 			@Override
-			public void close() throws Exception {
+			public void close(){
 			}
 
 			@Override
@@ -37,7 +34,7 @@ public interface OChannel_Opened<O> extends AutoCloseable {
 			}
 
 			@Override
-			public void pushAndClose(final O o, final ClappExceptionConsumerHandler<Exception> handler) {
+			public void pushAndClose(final O o) {
 				consumer.accept(o);
 			}
 			
@@ -51,7 +48,7 @@ public interface OChannel_Opened<O> extends AutoCloseable {
 		return new OChannel_Opened<Future<O>>() {
 
 			@Override
-			public void close() throws Exception {
+			public void close(){
 				channel.close();
 			}
 
@@ -67,7 +64,7 @@ public interface OChannel_Opened<O> extends AutoCloseable {
 			}
 
 			@Override
-			public void pushAndClose(final Future<O> futureValue, final ClappExceptionConsumerHandler<Exception> handlerCloseException) {
+			public void pushAndClose(final Future<O> futureValue) {
 				executor.submit(() -> {
 					Optional<O> optValue = Optional.empty();
 					try {
@@ -77,8 +74,6 @@ public interface OChannel_Opened<O> extends AutoCloseable {
 						channel.close();
 					} catch (InterruptedException | ExecutionException ex) {
 						throw handler.handle(ex);
-					} catch (Exception ex) {
-						handlerCloseException.handle(ex);
 					}finally {
 						closeTrigger.complete(optValue);
 					}
@@ -94,7 +89,7 @@ public interface OChannel_Opened<O> extends AutoCloseable {
 		return new OChannel_Opened<O>() {
 
 			@Override
-			public void close() throws Exception {
+			public void close(){
 				try {
 					oChannel.close();
 				} finally {

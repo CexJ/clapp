@@ -35,8 +35,8 @@ public class IOChannel<T> {
 		return IOChannel.of(iChannel, newOChannel);
 	}
 	
-	public IOChannel<T> addIChannel(IChannel<T> channel, final ExecutorService executor, final ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler) {
-		IChannel<T> newIChannel = () -> iChannel.open().pipe(channel.open(), executor, handler);
+	public IOChannel<T> addIChannel(IChannel<T> channel, final ExecutorService executor) {
+		IChannel<T> newIChannel = () -> iChannel.open().pipe(channel.open(), executor);
 		return IOChannel.of(newIChannel, oChannel);
 	}
 	
