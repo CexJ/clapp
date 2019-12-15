@@ -41,17 +41,17 @@ public class IOChannel<T> {
 	}
 	
 	public IOChannel<Future<T>> inParallel(final ExecutorService iExecutor, final ExecutorService oExecutor, final ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler) {
-		var trigger = new CompletableFuture<Optional<T>>(); 
-		IChannel<Future<T>> newIChannel = () -> IChannel_Open.inParallel(iChannel.open(), iExecutor, trigger);
-		Optional<OChannel<Future<T>>> newOChannel = oChannel.map(o -> () -> OChannel_Open.inParallel(o.open(), oExecutor, handler, trigger));
+		var trigger = oChannel.map(o -> new CompletableFuture<Optional<T>>()); 
+		Optional<OChannel<Future<T>>> newOChannel = oChannel.map(o -> () -> OChannel_Opened.inParallel(o.open(), oExecutor, handler, trigger.get()));
+		IChannel<Future<T>> newIChannel = () -> IChannel_Opened.inParallel(iChannel.open(), iExecutor, trigger);
 		return IOChannel.of(newIChannel, newOChannel);
 	}
 
-	public IChannel_Open<T> openIChannel() {
+	public IChannel_Opened<T> openIChannel() {
 		return iChannel.open();
 	}
 
-	public Optional<OChannel_Open<T>> openOChannel() {
+	public Optional<OChannel_Opened<T>> openOChannel() {
 		return oChannel.map(OChannel::open);
 	}
 

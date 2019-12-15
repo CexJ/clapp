@@ -5,7 +5,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import com.cexj.clapp.channels.IChannel;
-import com.cexj.clapp.channels.IChannel_Open;
+import com.cexj.clapp.channels.IChannel_Opened;
 import com.cexj.clapp.channels.IOChannel;
 import com.cexj.clapp.channels.OChannel;
 import com.cexj.clapp.context.ClappContext;
@@ -35,7 +35,7 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 		return IO.of(IOChannel.fromIChannel(channel), Optional.of(this), defaultCurrentClappContext.withDefault());
 	}
 	
-	IO<T, F, G, R, ?> orFrom(final IChannel<T> channel){
+	IO<T, F, G, R, N> orFrom(final IChannel<T> channel){
 		var executor = defaultCurrentClappContext.getCurrentValue().getIExecutor();
 		var handler = defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler();
 		var newIOChannel = ioChannel.addIChannel(channel, executor, handler);
@@ -43,22 +43,22 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 	}
 
 
-	IO<T, F, G, R, ?> andWriteItTo(final OChannel<T> channel) {
+	IO<T, F, G, R, N> andWriteItTo(final OChannel<T> channel) {
 		var newIOChannel = ioChannel.addOChannel(channel);
 		return IO.of(newIOChannel, optNextReader, defaultCurrentClappContext);
 	}
 
-	IO<T, F, G, R, ?> withLocalContext(ClappContext currentContext) {
+	IO<T, F, G, R, N> withLocalContext(ClappContext currentContext) {
 		var newDefaultCurrentClappContext = defaultCurrentClappContext.withNewCurrent(currentContext);
 		return IO.of(ioChannel, optNextReader, newDefaultCurrentClappContext);
 	}
 
-	IO<T, F, G, R, ?> withGlobalContext(ClappContext defaultContext) {
+	IO<T, F, G, R, N> withGlobalContext(ClappContext defaultContext) {
 		var newDefaultCurrentClappContext = DefaultCurrent.fromDefault(defaultContext);
 		return IO.of(ioChannel, optNextReader, newDefaultCurrentClappContext);
 	}
 
-	IO<Future<T>, FunctionFromFuture<Future<T>, N>, G, R, ?> inParallel() {
+	IO<Future<T>, FunctionFromFuture<Future<T>, N>, G, R, N> inParallel() {
 		return IO.of(ioChannel.inParallel(defaultCurrentClappContext.getCurrentValue().getIExecutor(),
 				defaultCurrentClappContext.getCurrentValue().getOExecutor(),
 				defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler()),
@@ -66,9 +66,9 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 	}
 
 	@SuppressWarnings("unchecked")
-	IChannel_Open<R> execute(final F f) {
-		return IChannel_Open.fromSupplier(() -> {
-			try(IChannel_Open<T> iChannel  = ioChannel.openIChannel()){
+	IChannel_Opened<R> execute(final F f) {
+		return IChannel_Opened.fromSupplier(() -> {
+			try(IChannel_Opened<T> iChannel  = ioChannel.openIChannel()){
 				var t = iChannel.pull();
 				var handler = defaultCurrentClappContext.getCurrentValue().getClosingOChannelExceptionHandler();
 				ioChannel.openOChannel().ifPresent(oChannel -> oChannel.pushAndClose(t, handler));
@@ -81,6 +81,11 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 			} catch (Exception ex) {
 				var handler = defaultCurrentClappContext.getCurrentValue().getClosingIChannelExceptionHandler();
 				throw handler.handle(ex);
+			} finally {
+				var iExecutor = defaultCurrentClappContext.getCurrentValue().getIExecutor();
+				var oExecutor = defaultCurrentClappContext.getCurrentValue().getOExecutor();
+				iExecutor.shutdown();
+				oExecutor.shutdown();
 			}
 		});
 	}

@@ -11,7 +11,7 @@ import com.cexj.clapp.exceptions.handler.ClappExceptionConsumerHandler;
 import com.cexj.clapp.exceptions.handler.ClappExceptionRethrowHandler;
 import com.cexj.clapp.exceptions.runtime.ClappRuntimeException;
 
-public interface OChannel_Open<O> extends AutoCloseable {
+public interface OChannel_Opened<O> extends AutoCloseable {
 
 	public void push(final O o);
 	
@@ -24,8 +24,8 @@ public interface OChannel_Open<O> extends AutoCloseable {
 		}
 	}
 	
-	public static <O> OChannel_Open<O> fromConsumer(final Consumer<O> consumer){
-		return new OChannel_Open<O>() {
+	public static <O> OChannel_Opened<O> fromConsumer(final Consumer<O> consumer){
+		return new OChannel_Opened<O>() {
 
 			@Override
 			public void close() throws Exception {
@@ -47,8 +47,8 @@ public interface OChannel_Open<O> extends AutoCloseable {
 		
 	}
 	
-	public static <O> OChannel_Open<Future<O>> inParallel(final OChannel_Open<O> channel, final ExecutorService executor, final ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler, final CompletableFuture<Optional<O>> closeTrigger){
-		return new OChannel_Open<Future<O>>() {
+	public static <O> OChannel_Opened<Future<O>> inParallel(final OChannel_Opened<O> channel, final ExecutorService executor, final ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler, final CompletableFuture<Optional<O>> closeTrigger){
+		return new OChannel_Opened<Future<O>>() {
 
 			@Override
 			public void close() throws Exception {
@@ -89,9 +89,9 @@ public interface OChannel_Open<O> extends AutoCloseable {
 		};
 	}
 
-	public default OChannel_Open<O> pipe(OChannel_Open<O> oChannel){
-		OChannel_Open<O> original = this;
-		return new OChannel_Open<O>() {
+	public default OChannel_Opened<O> pipe(OChannel_Opened<O> oChannel){
+		OChannel_Opened<O> original = this;
+		return new OChannel_Opened<O>() {
 
 			@Override
 			public void close() throws Exception {
