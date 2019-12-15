@@ -1,5 +1,7 @@
 package com.cexj.clapp.channels;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -12,14 +14,14 @@ import com.cexj.clapp.utils.either.Either;
 public interface IChannel_Opened<I>{
 
 	public Either<Exception, I> pull();
-	public Optional<Exception> close();
+	public List<Exception> close();
 
 	
 	public static <I> IChannel_Opened<I> fromSupplier(final Supplier<Either<Exception,I>> supplier){
 		return new IChannel_Opened<I>() {
 			
-			public Optional<Exception> close(){
-				return Optional.empty();
+			public List<Exception> close(){
+				return new ArrayList<>();
 			}
 
 			@Override
@@ -33,7 +35,7 @@ public interface IChannel_Opened<I>{
 	public static <I> IChannel_Opened<Future<I>> inParallel(final IChannel_Opened<I> channel, final ExecutorService executor, final Optional<CompletableFuture<Optional<I>>> closeTrigger){
 		return new IChannel_Opened<Future<I>>() {
 
-			public Optional<Exception> close(){
+			public List<Exception> close(){
 				closeTrigger.ifPresent(c -> {
 					try {
 						c.get();

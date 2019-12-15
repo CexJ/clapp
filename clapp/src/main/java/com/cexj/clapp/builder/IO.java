@@ -75,7 +75,6 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 				return optNextReader
 						.map(r -> notLastApply(f, t, r))
 						.orElse(Either.right((R) f.apply(t)));
-			
 			} catch (Exception ex) {
 				return Either.left(ex);
 			} finally {
