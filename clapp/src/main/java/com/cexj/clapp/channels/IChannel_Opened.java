@@ -12,13 +12,14 @@ import com.cexj.clapp.utils.either.Either;
 public interface IChannel_Opened<I>{
 
 	public Either<Exception, I> pull();
-	public void close();
+	public Optional<Exception> close();
 
 	
 	public static <I> IChannel_Opened<I> fromSupplier(final Supplier<Either<Exception,I>> supplier){
 		return new IChannel_Opened<I>() {
 			
-			public void close(){
+			public Optional<Exception> close(){
+				return Optional.empty();
 			}
 
 			@Override
@@ -32,15 +33,13 @@ public interface IChannel_Opened<I>{
 	public static <I> IChannel_Opened<Future<I>> inParallel(final IChannel_Opened<I> channel, final ExecutorService executor, final Optional<CompletableFuture<Optional<I>>> closeTrigger){
 		return new IChannel_Opened<Future<I>>() {
 
-			public void close(){
+			public Optional<Exception> close(){
 				closeTrigger.ifPresent(c -> {
 					try {
 						c.get();
-					} catch (InterruptedException | ExecutionException e) {
-						e.printStackTrace();
-					}
+					} catch (InterruptedException | ExecutionException e) {}
 				});
-				channel.close();
+				return channel.close();
 			}
 
 			@Override

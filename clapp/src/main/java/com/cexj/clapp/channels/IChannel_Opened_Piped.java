@@ -3,9 +3,11 @@ package com.cexj.clapp.channels;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.cexj.clapp.utils.either.Either;
@@ -29,8 +31,8 @@ public class IChannel_Opened_Piped<I> implements IChannel_Opened<I>{
 	}
 	
 	@Override
-	public void close(){
-		listOfChannels.forEach(c -> c.close());
+	public Optional<Exception> close(){
+		return listOfChannels.stream().map(c -> c.close()).findFirst().flatMap(Function.identity());
 	}
 
 	@Override
