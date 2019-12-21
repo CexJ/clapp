@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import com.cexj.clapp.channels.IChannel;
@@ -76,30 +77,34 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 			var iExecutor = defaultCurrentClappContext.getCurrentValue().getIExecutor();
 			var oExecutor = defaultCurrentClappContext.getCurrentValue().getOExecutor();
 			var closingIExecutor = defaultCurrentClappContext.getCurrentValue().getClosingIExecutor();
-			
-			
-			PullResult<R> result;
+			var trigger = new CompletableFuture<PullResult<R>>();
 			try{
 				var closingIChannelFuture = new CompletableFuture<List<Exception>>();
 				var iChannel = ioChannel.openIChannel();
-				
 				var pulled = iChannel.pull();
 				var t = pulled.getFinalResult().getRight();
 				var pushingOChannelFuture = ioChannel.openOChannel().map(oChannel -> oChannel.pushAndClose(t));
-				result = optNextReader
-						.map(r -> notLastApply(f, t, r).addStage(Stage.of(pulled, closingIChannelFuture, pushingOChannelFuture)))
-						.orElse(PullResult.of(Either.right((R) f.apply(t)), new ArrayList<>()));
+				closingIExecutor.submit(() -> {
+						try{
+							trigger.get();
+						} catch (InterruptedException | ExecutionException e) {} 
+						finally {
+							closingIChannelFuture.complete(iChannel.close());
+						}});
+				return optNextReader.map(r -> 
+							notLastApply(f, t, r).addStage(Stage.of(pulled, closingIChannelFuture, pushingOChannelFuture)))
+							.orElse(PullResult.of(Either.right((R) f.apply(t)), new ArrayList<>()));
 				
-				closingIExecutor.submit(() -> closingIChannelFuture.complete(iChannel.close()));
+				
 			} catch (Exception ex) {
 				return PullResult.of(Either.left(ex), new ArrayList<>());
 			} finally {
+				trigger.complete(null);
 				iExecutor.shutdown();
 				oExecutor.shutdown();
 				closingIExecutor.shutdown();
 			}
 			
-			return result;
 		});
 	}
 
