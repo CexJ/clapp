@@ -1,7 +1,9 @@
 package com.cexj.clapp.builder;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import com.cexj.clapp.channels.IChannel;
@@ -9,6 +11,8 @@ import com.cexj.clapp.channels.IChannel_Opened;
 import com.cexj.clapp.channels.IOChannel;
 import com.cexj.clapp.channels.OChannel;
 import com.cexj.clapp.context.ClappContext;
+import com.cexj.clapp.results.PullResult;
+import com.cexj.clapp.results.Stage;
 import com.cexj.clapp.utils.DefaultCurrent;
 import com.cexj.clapp.utils.FunctionFromFuture;
 import com.cexj.clapp.utils.either.Either;
@@ -67,33 +71,36 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 
 	@SuppressWarnings("unchecked")
 	IChannel_Opened<R> execute(final F f) {
-		return IChannel_Opened.fromSupplier(() -> {
+		return IChannel_Opened.<R>fromSupplier(() -> {
 			var iChannel  = ioChannel.openIChannel();
+			var closingIChannelFuture = new CompletableFuture<List<Exception>>();
 			try{
-				var t = iChannel.pull().getRight();
+				var pulled = iChannel.pull();
+				var t = pulled.getFinalResult().getRight();
 				ioChannel.openOChannel().ifPresent(oChannel -> oChannel.pushAndClose(t));
 				return optNextReader
-						.map(r -> notLastApply(f, t, r))
-						.orElse(Either.right((R) f.apply(t)));
+						.map(r -> notLastApply(f, t, r).addStage(Stage.of(pulled, closingIChannelFuture)))
+						.orElse(PullResult.of(Either.right((R) f.apply(t)), new ArrayList<>()));
 			} catch (Exception ex) {
-				return Either.left(ex);
+				return PullResult.of(Either.left(ex), new ArrayList<>());
 			} finally {
 				var iExecutor = defaultCurrentClappContext.getCurrentValue().getIExecutor();
 				var oExecutor = defaultCurrentClappContext.getCurrentValue().getOExecutor();
 				iExecutor.shutdown();
 				oExecutor.shutdown();
-				iChannel.close();	
+				var closingIExecutor = defaultCurrentClappContext.getCurrentValue().getClosingIExecutor();
+				closingIExecutor.submit(() -> closingIChannelFuture.complete(iChannel.close()));
 			}
 		});
 	}
 
 	@SuppressWarnings("unchecked")
-	private Either<Exception, R> notLastApply(final F f, final T t, final IO<?, G, ?, R, ?> r) {
+	private PullResult<R> notLastApply(final F f, final T t, final IO<?, G, ?, R, ?> r) {
 		try {
 			var g = (G) f.apply(t);
 			return r.execute(g).pull();
-		} catch (InterruptedException | ExecutionException ex) {
-			return Either.left(ex);
+		} catch (Exception ex) {
+			return PullResult.of(Either.left(ex), new ArrayList<>());
 		}
 
 	}

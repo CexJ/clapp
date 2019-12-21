@@ -14,6 +14,7 @@ public final class ClappContext {
 	public static final ClappContext DEFAULT_CONTEXT = ClappContextBuilder.defaultClapContext();
 	
 	private final ExecutorService iExecutor;
+	private final ExecutorService closingIExecutor;
 	private final ExecutorService oExecutor;
 	private final ClappExceptionRethrowHandler<Exception,ClappRuntimeException> futureExceptionHandler;
 	private final ClappExceptionRethrowHandler<Exception,ClappRuntimeException> closingIChannelExceptionHandler;
@@ -24,6 +25,10 @@ public final class ClappContext {
 		
 		private ExecutorService iExecutor;
 		private final static ExecutorService defaultIExecutor = Executors.newFixedThreadPool(10);
+		
+		private ExecutorService closingIExecutor;
+		private final static ExecutorService defaultClosingIExecutor = Executors.newFixedThreadPool(10);
+		
 		
 		private ExecutorService oExecutor;
 		private final static ExecutorService defaultOExecutor = Executors.newFixedThreadPool(10);
@@ -40,6 +45,8 @@ public final class ClappContext {
 		
 		private ClappContextBuilder(ClappContext clappContext){
 			this.iExecutor = clappContext.iExecutor;
+			this.closingIExecutor = clappContext.closingIExecutor;
+			this.oExecutor = clappContext.oExecutor;
 			this.futureExceptionHandler = clappContext.futureExceptionHandler;
 			this.closingIChannelExceptionHandler = clappContext.closingIChannelExceptionHandler;
 			this.closingOChannelExceptionHandler = clappContext.closingOChannelExceptionHandler;
@@ -48,6 +55,11 @@ public final class ClappContext {
 		
 		public ClappContextBuilder withIExecutor(final ExecutorService iExecutor) {
 			this.iExecutor = iExecutor;
+			return this;
+		}
+		
+		public ClappContextBuilder withClosingIExecutor(final ExecutorService closingIExecutor) {
+			this.closingIExecutor = closingIExecutor;
 			return this;
 		}
 		
@@ -75,6 +87,7 @@ public final class ClappContext {
 		public ClappContext build() {
 			return new ClappContext(
 					iExecutor, 
+					closingIExecutor,
 					oExecutor, 
 					futureExceptionHandler, 
 					closingIChannelExceptionHandler, 
@@ -93,6 +106,7 @@ public final class ClappContext {
 		public final static ClappContext defaultClapContext(){
 			return new ClappContext(
 					defaultIExecutor, 
+					defaultClosingIExecutor,
 					defaultOExecutor, 
 					defaultFutureExceptionHandler, 
 					defaultClosingIChannelExceptionHandler, 
@@ -101,12 +115,15 @@ public final class ClappContext {
 		
 	}
 	
-	private ClappContext(final ExecutorService iExecutor, 
+	private ClappContext(
+			final ExecutorService iExecutor, 
+			final ExecutorService closingIExecutor, 
 			final ExecutorService oExecutor, 
 			final ClappExceptionRethrowHandler<Exception,ClappRuntimeException> futureExceptionHandler, 
 			final ClappExceptionRethrowHandler<Exception,ClappRuntimeException> closingIChannelExceptionHandler,
 			final ClappExceptionConsumerHandler<Exception> closingOChannelExceptionHandler) {
 		super();
+		this.closingIExecutor = closingIExecutor;
 		this.iExecutor = iExecutor;
 		this.oExecutor = oExecutor;
 		this.futureExceptionHandler = futureExceptionHandler;
@@ -119,6 +136,12 @@ public final class ClappContext {
 		return iExecutor;
 	}
 	
+	
+	public ExecutorService getClosingIExecutor() {
+		return closingIExecutor;
+	}
+
+
 	public ExecutorService getOExecutor() {
 		return oExecutor;
 	}
