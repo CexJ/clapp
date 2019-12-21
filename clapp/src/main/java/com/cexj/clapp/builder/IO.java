@@ -63,34 +63,43 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 	}
 
 	IO<Future<T>, FunctionFromFuture<Future<T>, N>, G, R, N> inParallel() {
-		return IO.of(ioChannel.inParallel(defaultCurrentClappContext.getCurrentValue().getIExecutor(),
-				defaultCurrentClappContext.getCurrentValue().getOExecutor(),
-				defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler()),
+		return IO.of(
+				ioChannel.inParallel(
+						defaultCurrentClappContext.getCurrentValue().getIExecutor(),
+						defaultCurrentClappContext.getCurrentValue().getOExecutor()),
 				optNextReader, defaultCurrentClappContext);
 	}
 
 	@SuppressWarnings("unchecked")
 	IChannel_Opened<R> execute(final F f) {
 		return IChannel_Opened.<R>fromSupplier(() -> {
-			var iChannel  = ioChannel.openIChannel();
-			var closingIChannelFuture = new CompletableFuture<List<Exception>>();
+			var iExecutor = defaultCurrentClappContext.getCurrentValue().getIExecutor();
+			var oExecutor = defaultCurrentClappContext.getCurrentValue().getOExecutor();
+			var closingIExecutor = defaultCurrentClappContext.getCurrentValue().getClosingIExecutor();
+			
+			
+			PullResult<R> result;
 			try{
+				var closingIChannelFuture = new CompletableFuture<List<Exception>>();
+				var iChannel = ioChannel.openIChannel();
+				
 				var pulled = iChannel.pull();
 				var t = pulled.getFinalResult().getRight();
-				ioChannel.openOChannel().ifPresent(oChannel -> oChannel.pushAndClose(t));
-				return optNextReader
-						.map(r -> notLastApply(f, t, r).addStage(Stage.of(pulled, closingIChannelFuture)))
+				var pushingOChannelFuture = ioChannel.openOChannel().map(oChannel -> oChannel.pushAndClose(t));
+				result = optNextReader
+						.map(r -> notLastApply(f, t, r).addStage(Stage.of(pulled, closingIChannelFuture, pushingOChannelFuture)))
 						.orElse(PullResult.of(Either.right((R) f.apply(t)), new ArrayList<>()));
+				
+				closingIExecutor.submit(() -> closingIChannelFuture.complete(iChannel.close()));
 			} catch (Exception ex) {
 				return PullResult.of(Either.left(ex), new ArrayList<>());
 			} finally {
-				var iExecutor = defaultCurrentClappContext.getCurrentValue().getIExecutor();
-				var oExecutor = defaultCurrentClappContext.getCurrentValue().getOExecutor();
 				iExecutor.shutdown();
 				oExecutor.shutdown();
-				var closingIExecutor = defaultCurrentClappContext.getCurrentValue().getClosingIExecutor();
-				closingIExecutor.submit(() -> closingIChannelFuture.complete(iChannel.close()));
+				closingIExecutor.shutdown();
 			}
+			
+			return result;
 		});
 	}
 
