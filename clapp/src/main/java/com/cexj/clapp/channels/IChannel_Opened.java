@@ -9,15 +9,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.Supplier;
 
+import com.cexj.clapp.results.PullResult;
 import com.cexj.clapp.utils.either.Either;
 
 public interface IChannel_Opened<I>{
 
-	public Either<Exception, I> pull();
+	public PullResult<I> pull();
 	public List<Exception> close();
 
 	
-	public static <I> IChannel_Opened<I> fromSupplier(final Supplier<Either<Exception,I>> supplier){
+	public static <I> IChannel_Opened<I> fromSupplier(final Supplier<PullResult<I>> supplier){
 		return new IChannel_Opened<I>() {
 			
 			public List<Exception> close(){
@@ -25,7 +26,7 @@ public interface IChannel_Opened<I>{
 			}
 
 			@Override
-			public Either<Exception, I> pull() {
+			public PullResult<I> pull() {
 				return supplier.get();
 			}
 		};
@@ -45,8 +46,8 @@ public interface IChannel_Opened<I>{
 			}
 
 			@Override
-			public Either<Exception,Future<I>> pull() {
-				return Either.right(executor.submit(() -> channel.pull().getRight()));
+			public PullResult<Future<I>> pull() {
+				return PullResult.of(Either.right(executor.submit(() -> channel.pull().getFinalResult().getRight())), new ArrayList<>());
 			}
 			
 		};
@@ -55,6 +56,6 @@ public interface IChannel_Opened<I>{
 	public default IChannel_Opened<I> pipe(final IChannel_Opened<I> channel, final ExecutorService executor){
 		return IChannel_Opened_Piped.getInstance(this, channel, executor);
 			
-	}	
+	}
 
 }

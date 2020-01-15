@@ -1,6 +1,9 @@
 package com.cexj.clapp.builder;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -9,6 +12,8 @@ import com.cexj.clapp.channels.IChannel_Opened;
 import com.cexj.clapp.channels.IOChannel;
 import com.cexj.clapp.channels.OChannel;
 import com.cexj.clapp.context.ClappContext;
+import com.cexj.clapp.results.PullResult;
+import com.cexj.clapp.results.Stage;
 import com.cexj.clapp.utils.DefaultCurrent;
 import com.cexj.clapp.utils.FunctionFromFuture;
 import com.cexj.clapp.utils.either.Either;
@@ -59,41 +64,57 @@ final class IO<T, F extends FunctionFromFuture<T, ?>, G extends FunctionFromFutu
 	}
 
 	IO<Future<T>, FunctionFromFuture<Future<T>, N>, G, R, N> inParallel() {
-		return IO.of(ioChannel.inParallel(defaultCurrentClappContext.getCurrentValue().getIExecutor(),
-				defaultCurrentClappContext.getCurrentValue().getOExecutor(),
-				defaultCurrentClappContext.getCurrentValue().getFutureExceptionHandler()),
+		return IO.of(
+				ioChannel.inParallel(
+						defaultCurrentClappContext.getCurrentValue().getIExecutor(),
+						defaultCurrentClappContext.getCurrentValue().getOExecutor()),
 				optNextReader, defaultCurrentClappContext);
 	}
 
 	@SuppressWarnings("unchecked")
 	IChannel_Opened<R> execute(final F f) {
-		return IChannel_Opened.fromSupplier(() -> {
-			var iChannel  = ioChannel.openIChannel();
+		return IChannel_Opened.<R>fromSupplier(() -> {
+			var iExecutor = defaultCurrentClappContext.getCurrentValue().getIExecutor();
+			var oExecutor = defaultCurrentClappContext.getCurrentValue().getOExecutor();
+			var closingIExecutor = defaultCurrentClappContext.getCurrentValue().getClosingIExecutor();
+			var trigger = new CompletableFuture<PullResult<R>>();
 			try{
-				var t = iChannel.pull().getRight();
-				ioChannel.openOChannel().ifPresent(oChannel -> oChannel.pushAndClose(t));
-				return optNextReader
-						.map(r -> notLastApply(f, t, r))
-						.orElse(Either.right((R) f.apply(t)));
+				var closingIChannelFuture = new CompletableFuture<List<Exception>>();
+				var iChannel = ioChannel.openIChannel();
+				var pulled = iChannel.pull();
+				var t = pulled.getFinalResult().getRight();
+				var pushingOChannelFuture = ioChannel.openOChannel().map(oChannel -> oChannel.pushAndClose(t));
+				closingIExecutor.submit(() -> {
+						try{
+							trigger.get();
+						} catch (InterruptedException | ExecutionException e) {} 
+						finally {
+							closingIChannelFuture.complete(iChannel.close());
+						}});
+				return optNextReader.map(r -> 
+							notLastApply(f, t, r).addStage(Stage.of(pulled, closingIChannelFuture, pushingOChannelFuture)))
+							.orElse(PullResult.of(Either.right((R) f.apply(t)), new ArrayList<>()));
+				
+				
 			} catch (Exception ex) {
-				return Either.left(ex);
+				return PullResult.of(Either.left(ex), new ArrayList<>());
 			} finally {
-				var iExecutor = defaultCurrentClappContext.getCurrentValue().getIExecutor();
-				var oExecutor = defaultCurrentClappContext.getCurrentValue().getOExecutor();
+				trigger.complete(null);
 				iExecutor.shutdown();
 				oExecutor.shutdown();
-				iChannel.close();	
+				closingIExecutor.shutdown();
 			}
+			
 		});
 	}
 
 	@SuppressWarnings("unchecked")
-	private Either<Exception, R> notLastApply(final F f, final T t, final IO<?, G, ?, R, ?> r) {
+	private PullResult<R> notLastApply(final F f, final T t, final IO<?, G, ?, R, ?> r) {
 		try {
 			var g = (G) f.apply(t);
 			return r.execute(g).pull();
-		} catch (InterruptedException | ExecutionException ex) {
-			return Either.left(ex);
+		} catch (Exception ex) {
+			return PullResult.of(Either.left(ex), new ArrayList<>());
 		}
 
 	}

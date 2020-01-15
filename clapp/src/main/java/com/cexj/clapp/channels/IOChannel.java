@@ -5,9 +5,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
-import com.cexj.clapp.exceptions.handler.ClappExceptionRethrowHandler;
-import com.cexj.clapp.exceptions.runtime.ClappRuntimeException;
-
 public class IOChannel<T> {
 
 	private final IChannel<T> iChannel;
@@ -40,9 +37,9 @@ public class IOChannel<T> {
 		return IOChannel.of(newIChannel, oChannel);
 	}
 	
-	public IOChannel<Future<T>> inParallel(final ExecutorService iExecutor, final ExecutorService oExecutor, final ClappExceptionRethrowHandler<Exception, ClappRuntimeException> handler) {
+	public IOChannel<Future<T>> inParallel(final ExecutorService iExecutor, final ExecutorService oExecutor) {
 		var trigger = oChannel.map(o -> new CompletableFuture<Optional<T>>()); 
-		Optional<OChannel<Future<T>>> newOChannel = oChannel.map(o -> () -> OChannel_Opened.inParallel(o.open(), oExecutor, handler, trigger.get()));
+		Optional<OChannel<Future<T>>> newOChannel = oChannel.map(o -> () -> OChannel_Opened.inParallel(o.open(), oExecutor, trigger.get()));
 		IChannel<Future<T>> newIChannel = () -> IChannel_Opened.inParallel(iChannel.open(), iExecutor, trigger);
 		return IOChannel.of(newIChannel, newOChannel);
 	}
